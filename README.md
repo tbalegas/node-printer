@@ -2,7 +2,9 @@ Node Printer Prebuild
 ============
 Native bind printers on POSIX and Windows OS from Node.js, electron and node-webkit.
 
-[![npm version](https://badge.fury.io/js/@thiagoelg%2Fnode-printer.svg)](https://www.npmjs.com/package/@thiagoelg/node-printer) [![Prebuild Binaries and Publish](https://github.com/thiagoelg/node-printer/actions/workflows/prebuild-main.yml/badge.svg)](https://github.com/thiagoelg/node-printer/actions/workflows/prebuild-main.yml)
+[![npm version](https://badge.fury.io/js/@tbalegas%2Fnode-printer.svg)](https://www.npmjs.com/package/@tbalegas/node-printer) [![Prebuild Binaries and Publish](https://github.com/tbalegas/node-printer/actions/workflows/prebuild-main.yml/badge.svg)](https://github.com/tbalegas/node-printer/actions/workflows/prebuild-main.yml)
+
+> @tbalegas updated dependecies to support node 22 and electron 38. Changed CI to prebuild only these versions.
 
 > It just works with Node 12 because of @thiagoelg in his [PR](https://github.com/tojocky/node-printer/pull/261)
 
@@ -39,12 +41,12 @@ I was involved in a project where I need to print from Node.JS. This is the reas
 
 ### How to install:
 ```
-npm install @thiagoelg/node-printer
+npm install @tbalegas/node-printer
 ```
 
 ### How to use:
 
-See [examples](https://github.com/thiagoelg/node-printer/tree/main/examples)
+See [examples](https://github.com/tbalegas/node-printer/tree/main/examples)
 
 ### Author(s):
 
@@ -52,6 +54,7 @@ See [examples](https://github.com/thiagoelg/node-printer/tree/main/examples)
 
 ### Contibutors:
 
+* Tiago Balegas, @tbalegas
 * Thiago Lugli, @thiagoelg
 * Eko Eryanto, @ekoeryanto
 
