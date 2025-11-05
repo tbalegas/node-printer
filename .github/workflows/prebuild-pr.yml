@@ -20,7 +20,7 @@ jobs:
       - run: npm i
       - name: Prebuild
         run: |
-          npm run prebuild -- -r node -t 22.0.0 --strip --arch x64
+          npm run prebuild -- -r node -t 22.18.0 --strip --arch x64
           npm run prebuild -- -r electron -t 38.0.0 --strip --arch x64
   prebuild-macos:
     name: Prebuild Binaries for macOS
@@ -34,7 +34,7 @@ jobs:
       - run: npm i
       - name: Prebuild
         run: |
-          npm run prebuild -- -r node -t 22.0.0 --strip --arch x64
+          npm run prebuild -- -r node -t 22.18.0 --strip --arch x64
           npm run prebuild -- -r electron -t 38.0.0 --strip --arch x64
   prebuild-windows:
     name: Prebuild Binaries for Windows
@@ -48,5 +48,5 @@ jobs:
       - run: npm i
       - name: Prebuild
         run: |
-          npm run prebuild -- -r node -t 22.0.0 --strip --arch x64
+          npm run prebuild -- -r node -t 22.18.0 --strip --arch x64
           npm run prebuild -- -r electron -t 38.0.0 --strip --arch x64
