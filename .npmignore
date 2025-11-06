@@ -2,6 +2,5 @@
 *~
 .settings
 .c9*
-prebuilds/
 build/
-*.node
+lib/*.node
