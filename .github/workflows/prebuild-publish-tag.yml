@@ -78,5 +78,3 @@ jobs:
       - run: npm ci
       - run: npm test  # Optional, if you want to run tests before publishing
       - run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
