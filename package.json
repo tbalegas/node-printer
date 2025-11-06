@@ -18,9 +18,7 @@
     "url": "git://github.com/tbalegas/node-printer.git"
   },
   "devDependencies": {
-    "node-abi": "^4.17.0",
     "nodeunit": "^0.11.3",
-    "patch-package": "^8.0.1",
     "prebuildify": "^6.0.1"
   },
   "engines": {
