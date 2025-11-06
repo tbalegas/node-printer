@@ -1,16 +1,14 @@
 Node Printer Prebuild
 ============
-Native bind printers on POSIX and Windows OS from Node.js, electron and node-webkit.
+Native bind printers on POSIX and Windows OS from Node.js, electron and node-webkit. Built with Node-API for forward compatability.
 
 [![npm version](https://badge.fury.io/js/@tbalegas%2Fnode-printer.svg)](https://www.npmjs.com/package/@tbalegas/node-printer) [![Prebuild Binaries and Publish](https://github.com/tbalegas/node-printer/actions/workflows/prebuild-main.yml/badge.svg)](https://github.com/tbalegas/node-printer/actions/workflows/prebuild-main.yml)
 
-> @tbalegas updated dependecies to support node 22 and electron 38. Changed CI to prebuild only these versions.
+> Converted from V8/NAN to Node-API by @tbalegas. Also changed from prebuild to prebuildify, so that binaries are included with package instead of a seperate download. Should support any version of Node compatible with Electron > 3.
 
 > It just works with Node 12 because of @thiagoelg in his [PR](https://github.com/tojocky/node-printer/pull/261)
 
 > Prebuild and CI integration courtesy of @ekoeryanto in his [FORK](https://github.com/ekoeryanto/node-printer)
-
-If you have a problem, ask question to [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/tojocky/node-printer?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) or find/create a new [Github issue](https://github.com/thiagoelg/node-printer/issues)
 
 ___
 ### **Below is the original README**
