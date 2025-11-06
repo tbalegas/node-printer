@@ -1,41 +1,38 @@
 #include "node_printer.hpp"
 
-#include <node_buffer.h>
+Napi::Object Init(Napi::Env env, Napi::Object exports)
+{
+    MY_NODE_MODULE_SET_METHOD(env, exports, "getPrinters", getPrinters);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "getDefaultPrinterName", getDefaultPrinterName);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "getPrinter", getPrinter);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "getPrinterDriverOptions", getPrinterDriverOptions);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "getJob", getJob);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "setJob", setJob);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "printDirect", PrintDirect);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "printFile", PrintFile);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "getSupportedPrintFormats", getSupportedPrintFormats);
+    MY_NODE_MODULE_SET_METHOD(env, exports, "getSupportedJobCommands", getSupportedJobCommands);
 
-NAN_MODULE_INIT(Init) {
-// only for node
-    MY_MODULE_SET_METHOD(target, "getPrinters", getPrinters);
-    MY_MODULE_SET_METHOD(target, "getDefaultPrinterName", getDefaultPrinterName);
-    MY_MODULE_SET_METHOD(target, "getPrinter", getPrinter);
-    MY_MODULE_SET_METHOD(target, "getPrinterDriverOptions", getPrinterDriverOptions);
-    MY_MODULE_SET_METHOD(target, "getJob", getJob);
-    MY_MODULE_SET_METHOD(target, "setJob", setJob);
-    MY_MODULE_SET_METHOD(target, "printDirect", PrintDirect);
-    MY_MODULE_SET_METHOD(target, "printFile", PrintFile);
-    MY_MODULE_SET_METHOD(target, "getSupportedPrintFormats", getSupportedPrintFormats);
-    MY_MODULE_SET_METHOD(target, "getSupportedJobCommands", getSupportedJobCommands);
+    return exports;
 }
 
-#if NODE_MAJOR_VERSION >= 10
-NAN_MODULE_WORKER_ENABLED(node_printer, Init)
-#else
-NODE_MODULE(node_printer, Init)
-#endif
+NODE_API_MODULE(node_printer, Init)
 
 // Helpers
-
-bool getStringOrBufferFromV8Value(v8::Local<v8::Value> iV8Value, std::string &oData)
+bool getStringOrBufferFromNapiValue(const Napi::Value &value, std::string &outData)
 {
-    if(iV8Value->IsString())
+    if (value.IsString())
     {
-        Nan::Utf8String data_str_v8(V8_LOCAL_STRING_FROM_VALUE(iV8Value));
-        oData.assign(*data_str_v8, data_str_v8.length());
+        outData = value.As<Napi::String>().Utf8Value();
         return true;
     }
-    if(iV8Value->IsObject() && node::Buffer::HasInstance(iV8Value))
+
+    if (value.IsBuffer())
     {
-        oData.assign(node::Buffer::Data(iV8Value), node::Buffer::Length(iV8Value));
+        Napi::Buffer<char> buffer = value.As<Napi::Buffer<char>>();
+        outData.assign(buffer.Data(), buffer.Length());
         return true;
     }
+
     return false;
 }

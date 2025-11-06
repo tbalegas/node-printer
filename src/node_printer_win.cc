@@ -4,7 +4,7 @@
 #include <windows.h>
 #include <Winspool.h>
 #include <Wingdi.h>
-#pragma  comment(lib, "Winspool.lib")
+#pragma comment(lib, "Winspool.lib")
 #else
 #error "Unsupported compiler for windows. Feel free to add it."
 #endif
@@ -13,29 +13,34 @@
 #include <map>
 #include <utility>
 #include <sstream>
-#include <node_version.h>
 
-namespace{
+namespace
+{
     typedef std::map<std::string, DWORD> StatusMapType;
 
     /** Memory value class management to avoid memory leak
-    */
-    template<typename Type>
-    class MemValue: public MemValueBase<Type> {
+     */
+    template <typename Type>
+    class MemValue : public MemValueBase<Type>
+    {
     public:
         /** Constructor of allocating iSizeKbytes bytes memory;
-        * @param iSizeKbytes size in bytes of required allocating memory
-        */
-        MemValue(const DWORD iSizeKbytes) {
-            this->_value = (Type*)malloc(iSizeKbytes);
+         * @param iSizeKbytes size in bytes of required allocating memory
+         */
+        MemValue(const DWORD iSizeKbytes)
+        {
+            this->_value = (Type *)malloc(iSizeKbytes);
         }
-		
-        ~MemValue () {
+
+        ~MemValue()
+        {
             free();
         }
+
     protected:
-        virtual void free() {
-            if(this->_value != NULL)
+        virtual void free()
+        {
+            if (this->_value != NULL)
             {
                 ::free(this->_value);
                 this->_value = NULL;
@@ -51,24 +56,24 @@ namespace{
         }
         ~PrinterHandle()
         {
-            if(_ok)
+            if (_ok)
             {
                 ClosePrinter(_printer);
             }
         }
-        operator HANDLE() {return _printer;}
-        operator bool() { return (!!_ok);}
-        HANDLE & operator *() { return _printer;}
-        HANDLE * operator ->() { return &_printer;}
-        const HANDLE & operator ->() const { return _printer;}
+        operator HANDLE() { return _printer; }
+        operator bool() { return (!!_ok); }
+        HANDLE &operator*() { return _printer; }
+        HANDLE *operator->() { return &_printer; }
+        const HANDLE &operator->() const { return _printer; }
         HANDLE _printer;
         BOOL _ok;
     };
 
-    const StatusMapType& getStatusMap()
+    const StatusMapType &getStatusMap()
     {
         static StatusMapType result;
-        if(!result.empty())
+        if (!result.empty())
         {
             return result;
         }
@@ -103,10 +108,10 @@ namespace{
         return result;
     }
 
-    const StatusMapType& getJobStatusMap()
+    const StatusMapType &getJobStatusMap()
     {
         static StatusMapType result;
-        if(!result.empty())
+        if (!result.empty())
         {
             return result;
         }
@@ -139,10 +144,10 @@ namespace{
         return result;
     }
 
-    const StatusMapType& getAttributeMap()
+    const StatusMapType &getAttributeMap()
     {
         static StatusMapType result;
-        if(!result.empty())
+        if (!result.empty())
         {
             return result;
         }
@@ -179,10 +184,10 @@ namespace{
         return result;
     }
 
-    const StatusMapType& getJobCommandMap()
+    const StatusMapType &getJobCommandMap()
     {
         static StatusMapType result;
-        if(!result.empty())
+        if (!result.empty())
         {
             return result;
         }
@@ -205,235 +210,237 @@ namespace{
         return result;
     }
 
-    void parseJobObject(JOB_INFO_2W *job, v8::Local<v8::Object> result_printer_job)
+    void parseJobObject(JOB_INFO_2W *job, Napi::Object result_printer_job)
     {
-        MY_NODE_MODULE_ISOLATE_DECL
-        //Common fields
-        //DWORD                JobId;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("id"), V8_VALUE_NEW(Number, job->JobId));
-#define ADD_V8_STRING_PROPERTY(name, key) if((job->##key != NULL) && (*job->##key != L'\0'))    \
-        {                                   \
-            Nan::Set(result_printer_job, V8_STRING_NEW_UTF8(#name), V8_STRING_NEW_2BYTES((uint16_t*)job->##key)); \
-        }
-        //LPTSTR               pPrinterName;
-        ADD_V8_STRING_PROPERTY(name, pPrinterName)
-        //LPTSTR               pPrinterName;
-        ADD_V8_STRING_PROPERTY(printerName, pPrinterName);
-        //LPTSTR               pUserName;
-        ADD_V8_STRING_PROPERTY(user, pUserName);
-        //LPTSTR               pDatatype;
-        ADD_V8_STRING_PROPERTY(format, pDatatype);
-        //DWORD                Priority;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("priority"), V8_VALUE_NEW(Number, job->Priority));
-        //DWORD                Size;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("size"), V8_VALUE_NEW(Number, job->Size));
-        //DWORD                Status;
-        v8::Local<v8::Array> result_printer_job_status = V8_VALUE_NEW_DEFAULT(Array);
-        int i_status = 0;
-        for(StatusMapType::const_iterator itStatus = getJobStatusMap().begin(); itStatus != getJobStatusMap().end(); ++itStatus)
+        Napi::Env env = result_printer_job.Env();
+        // Common fields
+        // DWORD                JobId;
+        result_printer_job.Set("id", Napi::Number::New(env, job->JobId));
+#define ADD_NAPI_STRING_PROPERTY(name, key)                                \
+    if ((job->##key != NULL) && (*job->##key != L'\0'))                    \
+    {                                                                      \
+        result_printer_job.Set(#name, Napi::String::New(env, job->##key)); \
+    }
+        // LPTSTR               pPrinterName;
+        ADD_NAPI_STRING_PROPERTY(name, pPrinterName);
+        // LPTSTR               pPrinterName;
+        ADD_NAPI_STRING_PROPERTY(printerName, pPrinterName);
+        // LPTSTR               pUserName;
+        ADD_NAPI_STRING_PROPERTY(user, pUserName);
+        // LPTSTR               pDatatype;
+        ADD_NAPI_STRING_PROPERTY(format, pDatatype);
+        // DWORD                Priority;
+        result_printer_job.Set("priority", Napi::Number::New(env, job->Priority));
+        // DWORD                Size;
+        result_printer_job.Set("size", Napi::Number::New(env, job->Size));
+        // DWORD                Status;
+        Napi::Array result_printer_job_status = Napi::Array::New(env);
+        uint32_t i_status = 0;
+        for (const auto &itStatus : getJobStatusMap())
         {
-            if(job->Status & itStatus->second)
+            if (job->Status & itStatus.second)
             {
-                Nan::Set(result_printer_job_status, i_status++, V8_STRING_NEW_UTF8(itStatus->first.c_str()));
+                result_printer_job_status.Set(i_status++, Napi::String::New(env, itStatus.first));
             }
         }
-        //LPTSTR               pStatus;
-        if((job->pStatus != NULL) && (*job->pStatus != L'\0'))
+        // LPTSTR               pStatus;
+        if ((job->pStatus != NULL) && (*job->pStatus != L'\0'))
         {
-            Nan::Set(result_printer_job_status, i_status++, V8_STRING_NEW_2BYTES((uint16_t*)job->pStatus));
+            result_printer_job_status.Set(i_status++, Napi::String::New(env, job->pStatus));
         }
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("status"), result_printer_job_status);
+        result_rpinter_job.Set("status", result_printer_job_status);
 
         // Specific fields
-        //LPTSTR               pMachineName;
-        ADD_V8_STRING_PROPERTY(machineName, pMachineName);
-        //LPTSTR               pDocument;
-        ADD_V8_STRING_PROPERTY(document, pDocument);
-        //LPTSTR               pNotifyName;
-        ADD_V8_STRING_PROPERTY(notifyName, pNotifyName);
-        //LPTSTR               pPrintProcessor;
-        ADD_V8_STRING_PROPERTY(printProcessor, pPrintProcessor);
-        //LPTSTR               pParameters;
-        ADD_V8_STRING_PROPERTY(parameters, pParameters);
-        //LPTSTR               pDriverName;
-        ADD_V8_STRING_PROPERTY(driverName, pDriverName);
-#undef ADD_V8_STRING_PROPERTY
-        //LPDEVMODE            pDevMode;
-        //PSECURITY_DESCRIPTOR pSecurityDescriptor;
-        //DWORD                Position;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("position"), V8_VALUE_NEW(Number, job->Position));
-        //DWORD                StartTime;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("startTime"), V8_VALUE_NEW(Number, job->StartTime));
-        //DWORD                UntilTime;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("untilTime"), V8_VALUE_NEW(Number, job->UntilTime));
-        //DWORD                TotalPages;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("totalPages"), V8_VALUE_NEW(Number, job->TotalPages));
-        //SYSTEMTIME           Submitted;
-        //DWORD                Time;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("time"), V8_VALUE_NEW(Number, job->Time));
-        //DWORD                PagesPrinted;
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("pagesPrinted"), V8_VALUE_NEW(Number, job->PagesPrinted));
+        // LPTSTR               pMachineName;
+        ADD_NAPI_STRING_PROPERTY(machineName, pMachineName);
+        // LPTSTR               pDocument;
+        ADD_NAPI_STRING_PROPERTY(document, pDocument);
+        // LPTSTR               pNotifyName;
+        ADD_NAPI_STRING_PROPERTY(notifyName, pNotifyName);
+        // LPTSTR               pPrintProcessor;
+        ADD_NAPI_STRING_PROPERTY(printProcessor, pPrintProcessor);
+        // LPTSTR               pParameters;
+        ADD_NAPI_STRING_PROPERTY(parameters, pParameters);
+        // LPTSTR               pDriverName;
+        ADD_NAPI_STRING_PROPERTY(driverName, pDriverName);
+#undef ADD_NAPI_STRING_PROPERTY
+        // LPDEVMODE            pDevMode;
+        // PSECURITY_DESCRIPTOR pSecurityDescriptor;
+        // DWORD                Position;
+        result_printer_job.Set("position", Napi::Number::New(env, job->Position));
+        // DWORD                StartTime;
+        result_printer_job.Set("startTime", Napi::Number::New(env, job->StartTime));
+        // DWORD                UntilTime;
+        result_printer_job.Set("untilTime", Napi::Number::New(env, job->UntilTime));
+        // DWORD                TotalPages;
+        result_printer_job.Set("totalPages", Napi::Number::New(env, job->TotalPages));
+        // SYSTEMTIME           Submitted;
+        // DWORD                Time;
+        result_printer_job.Set("time", Napi::Number::New(env, job->Time));
+        // DWORD                PagesPrinted;
+        result_printer_job.Set("pagesPrinted", Napi::Number::New(env, job->PagesPrinted));
     }
 
     /**
      * Returns last error code and message string
      */
-    std::string getLastErrorCodeAndMessage() {
-    	std::ostringstream s;
-    	DWORD erroCode = GetLastError();
-    	s << "code: " << erroCode;
-    	DWORD retSize;
-    	LPTSTR pTemp = NULL;
-    	retSize = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
-                                FORMAT_MESSAGE_FROM_SYSTEM|
-                                FORMAT_MESSAGE_ARGUMENT_ARRAY,
+    std::string getLastErrorCodeAndMessage()
+    {
+        std::ostringstream s;
+        DWORD erroCode = GetLastError();
+        s << "code: " << erroCode;
+        DWORD retSize;
+        LPTSTR pTemp = NULL;
+        retSize = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                                    FORMAT_MESSAGE_FROM_SYSTEM |
+                                    FORMAT_MESSAGE_ARGUMENT_ARRAY,
                                 NULL,
                                 erroCode,
                                 LANG_NEUTRAL,
                                 (LPTSTR)&pTemp,
                                 0,
-                                NULL );
-        if (retSize && pTemp != NULL) {
-	    //pTemp[strlen(pTemp)-2]='\0'; //remove cr and newline character
-	    //TODO: check if it is needed to convert c string to std::string
-	    std::string stringMessage(pTemp);
-	    s << ", message: " << stringMessage;
-	    LocalFree((HLOCAL)pTemp);
-	}
+                                NULL);
+        if (retSize && pTemp != NULL)
+        {
+            // pTemp[strlen(pTemp)-2]='\0'; //remove cr and newline character
+            // TODO: check if it is needed to convert c string to std::string
+            std::string stringMessage(pTemp);
+            s << ", message: " << stringMessage;
+            LocalFree((HLOCAL)pTemp);
+        }
 
-    	return s.str();
+        return s.str();
     }
 
     std::string retrieveAndParseJobs(const LPWSTR iPrinterName,
-                                     const DWORD& iTotalJobs,
-                                     v8::Local<v8::Object> result_printer_jobs,
-                                     PrinterHandle& iPrinterHandle)
+                                     const DWORD &iTotalJobs,
+                                     Napi::Object result_printer_jobs,
+                                     PrinterHandle &iPrinterHandle)
     {
-        MY_NODE_MODULE_ISOLATE_DECL
+        Napi::Env env = result_printer_jobs.Env();
         DWORD bytes_needed = 0, totalJobs = 0;
         BOOL bError = EnumJobsW(*iPrinterHandle, 0, iTotalJobs, 2, NULL, bytes_needed, &bytes_needed, &totalJobs);
         MemValue<JOB_INFO_2W> jobs(bytes_needed);
-        if(!jobs)
+        if (!jobs)
         {
             std::string error_str("Error on allocating memory for jobs: ");
             error_str += getLastErrorCodeAndMessage();
-            v8::Local<v8::Object> result_printer_job = V8_VALUE_NEW_DEFAULT(Object);
-            Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("error"), V8_STRING_NEW_UTF8(error_str.c_str()));
-            Nan::Set(result_printer_jobs, 0, result_printer_job);
+            Napi::Object result_printer_job = Napi::Object::New(env);
+            result_printer_job.Set("error", Napi::String::New(env, error_str));
+            result_printer_jobs.Set(uint32_t(0), result_printer_job);
             return std::string("");
         }
         DWORD dummy_bytes = 0;
         bError = EnumJobsW(*iPrinterHandle, 0, iTotalJobs, 2, (LPBYTE)jobs.get(), bytes_needed, &dummy_bytes, &totalJobs);
-        if(!bError)
+        if (!bError)
         {
             std::string error_str("Error on EnumJobsW: ");
             error_str += getLastErrorCodeAndMessage();
-            v8::Local<v8::Object> result_printer_job = V8_VALUE_NEW_DEFAULT(Object);
-            Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("error"), V8_STRING_NEW_UTF8(error_str.c_str()));
-            Nan::Set(result_printer_jobs, 0, result_printer_job);
+            Napi::Object result_printer_job = Napi::Object::New(env);
+            result_printer_job.Set("error", Napi::String::New(env, error_str));
+            result_printer_jobs.Set(uint32_t(0), result_printer_job);
             return std::string("");
         }
         JOB_INFO_2W *job = jobs.get();
-        for(DWORD i = 0; i < totalJobs; ++i, ++job)
+        for (DWORD i = 0; i < totalJobs; ++i, ++job)
         {
-            v8::Local<v8::Object> result_printer_job = V8_VALUE_NEW_DEFAULT(Object);
+            Napi::Object result_printer_job = Napi::Object::New(env);
             parseJobObject(job, result_printer_job);
-            Nan::Set(result_printer_jobs, i, result_printer_job);
+            result_printer_jobs.Set(i, result_printer_job);
         }
         return std::string("");
     }
 
-    std::string parsePrinterInfo(const PRINTER_INFO_2W *printer, v8::Local<v8::Object> result_printer, PrinterHandle& iPrinterHandle)
+    std::string parsePrinterInfo(const PRINTER_INFO_2W *printer, Napi::Object result_printer, PrinterHandle &iPrinterHandle)
     {
-        MY_NODE_MODULE_ISOLATE_DECL
-    #define ADD_V8_STRING_PROPERTY(name, key) if((printer->##key != NULL) && (*printer->##key != L'\0'))    \
-        {                                   \
-            Nan::Set(result_printer, V8_STRING_NEW_UTF8(#name), V8_STRING_NEW_2BYTES((uint16_t*)printer->##key)); \
-        }
-        //LPTSTR               pPrinterName;
+        Napi::Env env = result_printer.Env();
+#define ADD_V8_STRING_PROPERTY(name, key)                             \
+    if ((printer->##key != NULL) && (*printer->##key != L'\0'))       \
+    {                                                                 \
+        result_printer.Set(#name, Napi::String::New(printer->##key)); \
+    }
+        // LPTSTR               pPrinterName;
         ADD_V8_STRING_PROPERTY(name, pPrinterName)
-        //LPTSTR               pServerName;
+        // LPTSTR               pServerName;
         ADD_V8_STRING_PROPERTY(serverName, pServerName)
-        //LPTSTR               pShareName;
+        // LPTSTR               pShareName;
         ADD_V8_STRING_PROPERTY(shareName, pShareName)
-        //LPTSTR               pPortName;
+        // LPTSTR               pPortName;
         ADD_V8_STRING_PROPERTY(portName, pPortName)
-        //LPTSTR               pDriverName;
+        // LPTSTR               pDriverName;
         ADD_V8_STRING_PROPERTY(driverName, pDriverName)
-        //LPTSTR               pComment;
+        // LPTSTR               pComment;
         ADD_V8_STRING_PROPERTY(comment, pComment)
-        //LPTSTR               pLocation;
+        // LPTSTR               pLocation;
         ADD_V8_STRING_PROPERTY(location, pLocation)
-        //LPTSTR               pSepFile;
+        // LPTSTR               pSepFile;
         ADD_V8_STRING_PROPERTY(sepFile, pSepFile)
-        //LPTSTR               pPrintProcessor;
+        // LPTSTR               pPrintProcessor;
         ADD_V8_STRING_PROPERTY(printProcessor, pPrintProcessor)
-        //LPTSTR               pDatatype;
+        // LPTSTR               pDatatype;
         ADD_V8_STRING_PROPERTY(datatype, pDatatype)
-        //LPTSTR               pParameters;
+        // LPTSTR               pParameters;
         ADD_V8_STRING_PROPERTY(parameters, pParameters)
-    #undef ADD_V8_STRING_PROPERTY
-        //DWORD                Status;
-        // statuses from:
-        // http://msdn.microsoft.com/en-gb/library/windows/desktop/dd162845(v=vs.85).aspx
-        v8::Local<v8::Array> result_printer_status = V8_VALUE_NEW_DEFAULT(Array);
-        int i_status = 0;
-        for(StatusMapType::const_iterator itStatus = getStatusMap().begin(); itStatus != getStatusMap().end(); ++itStatus)
+#undef ADD_V8_STRING_PROPERTY
+        // DWORD                Status;
+        //  statuses from:
+        //  http://msdn.microsoft.com/en-gb/library/windows/desktop/dd162845(v=vs.85).aspx
+        Napi::Array result_printer_status = Napi::Array::New(env);
+        uint32_t i_status = 0;
+        for (const auto &itStatus : getStatusMap())
         {
-            if(printer->Status & itStatus->second)
+            if (printer->Status & itStatus.second)
             {
-                Nan::Set(result_printer_status, i_status, V8_STRING_NEW_UTF8(itStatus->first.c_str()));
-                ++i_status;
+                result_printer_status.Set(i_status++, Napi::String::New(env, itStatus.first));
             }
         }
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("status"), result_printer_status);
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("statusNumber"), V8_VALUE_NEW(Number, printer->Status));
-        //DWORD                Attributes;
-        v8::Local<v8::Array> result_printer_attributes = V8_VALUE_NEW_DEFAULT(Array);
-        int i_attribute = 0;
-        for(StatusMapType::const_iterator itAttribute = getAttributeMap().begin(); itAttribute != getAttributeMap().end(); ++itAttribute)
+        result_printer.Set("status", result_printer_status);
+        result_printer.Set("statusNumber", Napi::Number::New(env, printer->Status));
+        // DWORD                Attributes;
+        Napi::Array result_printer_attributes = Napi::Array::New(env);
+        uint32_t i_attribute = 0;
+        for (const auto &itAttribute : getAttributeMap())
         {
-            if(printer->Attributes & itAttribute->second)
+            if (printer->Attributes & itAttribute.second)
             {
-                Nan::Set(result_printer_attributes, i_attribute, V8_STRING_NEW_UTF8(itAttribute->first.c_str()));
-                ++i_attribute;
+                result_printer_attributes.Set(i_attribute++, Napi::String::New(env, itAttribute.first));
             }
         }
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("attributes"), result_printer_attributes);
-        //DWORD                Priority;
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("priority"), V8_VALUE_NEW(Number, printer->Priority));
-        //DWORD                DefaultPriority;
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("defaultPriority"), V8_VALUE_NEW(Number, printer->DefaultPriority));
-        //DWORD                cJobs;
-        //Nan::Set(result_printer, V8_STRING_NEW_UTF8("jobs"), V8_VALUE_NEW(Number, printer->cJobs));
-        //DWORD                AveragePPM;
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("averagePPM"), V8_VALUE_NEW(Number, printer->AveragePPM));
+        result_printer.Set("attributes", result_printer_attributes);
+        // DWORD                Priority;
+        result_printer.Set("priority", Napi::Number::New(env, printer->Priority));
+        // DWORD                DefaultPriority;
+        result_printer.Set("defaultPriority", Napi::Number::New(env, printer->DefaultPriority));
+        // DWORD                cJobs;
+        // Nan::Set(result_printer, V8_STRING_NEW_UTF8("jobs"), V8_VALUE_NEW(Number, printer->cJobs));
+        // DWORD                AveragePPM;
+        result_printer.Set("averagePPM", Napi::Number::New(env, printer->AveragePPM));
 
-        //DWORD                StartTime;
-        if(printer->StartTime > 0)
+        // DWORD                StartTime;
+        if (printer->StartTime > 0)
         {
-            Nan::Set(result_printer, V8_STRING_NEW_UTF8("startTime"), V8_VALUE_NEW(Number, printer->StartTime));
+            result_printer.Set("startTime", Napi::Number::New(env, printer->StartTime));
         }
-        //DWORD                UntilTime;
-        if(printer->UntilTime > 0)
+        // DWORD                UntilTime;
+        if (printer->UntilTime > 0)
         {
-            Nan::Set(result_printer, V8_STRING_NEW_UTF8("untilTime"), V8_VALUE_NEW(Number, printer->UntilTime));
+            result_printer.Set("untilTime", Napi::Number::New(env, printer->UntilTime));
         }
 
-        //TODO: to finish to extract all data
-        //LPDEVMODE            pDevMode;
-        //PSECURITY_DESCRIPTOR pSecurityDescriptor;
+        // TODO: to finish to extract all data
+        // LPDEVMODE            pDevMode;
+        // PSECURITY_DESCRIPTOR pSecurityDescriptor;
 
-        if(printer->cJobs > 0)
+        if (printer->cJobs > 0)
         {
-            v8::Local<v8::Array> result_printer_jobs = V8_VALUE_NEW(Array, printer->cJobs);
+            Napi::Array result_printer_jobs = Napi::Array::New(env, printer->cJobs);
             // get jobs
             std::string error_str = retrieveAndParseJobs(printer->pPrinterName, printer->cJobs, result_printer_jobs, iPrinterHandle);
-            if(!error_str.empty())
+            if (!error_str.empty())
             {
                 return error_str;
             }
-            Nan::Set(result_printer, V8_STRING_NEW_UTF8("jobs"), result_printer_jobs);
+            result_printer.Set("jobs", result_printer_jobs);
         }
         return "";
     }
@@ -441,75 +448,77 @@ namespace{
 
 MY_NODE_MODULE_CALLBACK(getPrinters)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
+    MY_NODE_MODULE_ENV(info);
     DWORD printers_size = 0;
     DWORD printers_size_bytes = 0, dummyBytes = 0;
     DWORD Level = 2;
-    DWORD flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;// https://msdn.microsoft.com/en-us/library/cc244669.aspx
+    DWORD flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS; // https://msdn.microsoft.com/en-us/library/cc244669.aspx
     // First try to retrieve the number of printers
     BOOL bError = EnumPrintersW(flags, NULL, 2, NULL, 0, &printers_size_bytes, &printers_size);
     // allocate the required memmory
     MemValue<PRINTER_INFO_2W> printers(printers_size_bytes);
-    if(!printers)
+    if (!printers)
     {
         RETURN_EXCEPTION_STR("Error on allocating memory for printers");
     }
 
     bError = EnumPrintersW(flags, NULL, 2, (LPBYTE)(printers.get()), printers_size_bytes, &dummyBytes, &printers_size);
-    if(!bError)
+    if (!bError)
     {
         std::string error_str("Error on EnumPrinters: ");
-	error_str += getLastErrorCodeAndMessage();
+        error_str += getLastErrorCodeAndMessage();
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
-    v8::Local<v8::Array> result = V8_VALUE_NEW(Array, printers_size);
+    Napi::Array result = Napi::Array::New(env, printers_size);
     // http://msdn.microsoft.com/en-gb/library/windows/desktop/dd162845(v=vs.85).aspx
-	PRINTER_INFO_2W *printer = printers.get();
-	DWORD i = 0;
-    for(; i < printers_size; ++i, ++printer)
+    PRINTER_INFO_2W *printer = printers.get();
+    DWORD i = 0;
+    for (; i < printers_size; ++i, ++printer)
     {
-        v8::Local<v8::Object> result_printer = V8_VALUE_NEW_DEFAULT(Object);
+        Napi::Object result_printer = Napi::Object::New(env);
         PrinterHandle printerHandle((LPWSTR)(printer->pPrinterName));
         std::string error_str = parsePrinterInfo(printer, result_printer, printerHandle);
-        if(!error_str.empty())
+        if (!error_str.empty())
         {
             RETURN_EXCEPTION_STR(error_str.c_str());
         }
-        Nan::Set(result, i, result_printer);
+        result.Set(i, result_printer);
     }
-    MY_NODE_MODULE_RETURN_VALUE(result);
+    return result;
 }
 
 MY_NODE_MODULE_CALLBACK(getDefaultPrinterName)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
+    MY_NODE_MODULE_ENV(info);
     // size in chars of the printer name: https://msdn.microsoft.com/en-us/library/windows/desktop/dd144876(v=vs.85).aspx
     DWORD cSize = 0;
     GetDefaultPrinterW(NULL, &cSize);
 
-    if(cSize == 0) {
-        MY_NODE_MODULE_RETURN_VALUE(V8_STRING_NEW_UTF8(""));
+    if (cSize == 0)
+    {
+        return Napi::String::New(env, "");
     }
 
-    MemValue<uint16_t> bPrinterName(cSize*sizeof(uint16_t));
+    MemValue<uint16_t> bPrinterName(cSize * sizeof(uint16_t));
     BOOL res = GetDefaultPrinterW((LPWSTR)(bPrinterName.get()), &cSize);
 
-    if(!res) {
-        MY_NODE_MODULE_RETURN_VALUE(V8_STRING_NEW_UTF8(""));
+    if (!res)
+    {
+        return Napi::String::New(env, "");
     }
 
-    MY_NODE_MODULE_RETURN_VALUE(V8_STRING_NEW_2BYTES((uint16_t*)bPrinterName.get()));
+    return Napi::String::New(env, (uint16_t *)bPrinterName.get());
 }
 
 MY_NODE_MODULE_CALLBACK(getPrinter)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 1);
-    REQUIRE_ARGUMENT_STRINGW(iArgs, 0, printername);
+    MY_NODE_MODULE_ENV(info);
+    REQUIRE_ARGUMENTS(info, 1);
+    REQUIRE_ARGUMENT_STRINGW(info, 0, printername);
 
     // Open a handle to the printer.
     PrinterHandle printerHandle((LPWSTR)(*printername));
-    if(!printerHandle)
+    if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
         error_str += getLastErrorCodeAndMessage();
@@ -518,20 +527,20 @@ MY_NODE_MODULE_CALLBACK(getPrinter)
     DWORD printers_size_bytes = 0, dummyBytes = 0;
     GetPrinterW(*printerHandle, 2, NULL, printers_size_bytes, &printers_size_bytes);
     MemValue<PRINTER_INFO_2W> printer(printers_size_bytes);
-    if(!printer)
+    if (!printer)
     {
         RETURN_EXCEPTION_STR("Error on allocating memory for printers");
     }
     BOOL bOK = GetPrinterW(*printerHandle, 2, (LPBYTE)(printer.get()), printers_size_bytes, &printers_size_bytes);
-    if(!bOK)
+    if (!bOK)
     {
         std::string error_str("Error on GetPrinter: ");
-	error_str += getLastErrorCodeAndMessage();
+        error_str += getLastErrorCodeAndMessage();
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
     v8::Local<v8::Object> result_printer = V8_VALUE_NEW_DEFAULT(Object);
     std::string error_str = parsePrinterInfo(printer.get(), result_printer, printerHandle);
-    if(!error_str.empty())
+    if (!error_str.empty())
     {
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
@@ -541,68 +550,67 @@ MY_NODE_MODULE_CALLBACK(getPrinter)
 
 MY_NODE_MODULE_CALLBACK(getPrinterDriverOptions)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
+    MY_NODE_MODULE_ENV(info);
     RETURN_EXCEPTION_STR("not supported on windows");
 }
 
 MY_NODE_MODULE_CALLBACK(getJob)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 2);
-    REQUIRE_ARGUMENT_STRINGW(iArgs, 0, printername);
-    REQUIRE_ARGUMENT_INTEGER(iArgs, 1, jobId);
-    if(jobId < 0)
+    MY_NODE_MODULE_ENV(info);
+    REQUIRE_ARGUMENTS(info, 2);
+    REQUIRE_ARGUMENT_STRINGW(info, 0, printername);
+    REQUIRE_ARGUMENT_INTEGER(info, 1, jobId);
+    if (jobId < 0)
     {
         RETURN_EXCEPTION_STR("Wrong job number");
     }
     // Open a handle to the printer.
     PrinterHandle printerHandle((LPWSTR)(*printername));
-    if(!printerHandle)
+    if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
-	error_str += getLastErrorCodeAndMessage();
+        error_str += getLastErrorCodeAndMessage();
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
     DWORD size_bytes = 0, dummyBytes = 0;
     GetJobW(*printerHandle, static_cast<DWORD>(jobId), 2, NULL, size_bytes, &size_bytes);
     MemValue<JOB_INFO_2W> job(size_bytes);
-    if(!job)
+    if (!job)
     {
         RETURN_EXCEPTION_STR("Error on allocating memory for printers");
     }
     BOOL bOK = GetJobW(*printerHandle, static_cast<DWORD>(jobId), 2, (LPBYTE)job.get(), size_bytes, &dummyBytes);
-    if(!bOK)
+    if (!bOK)
     {
         std::string error_str("Error on GetJob. Wrong job id or it was deleted: ");
-	error_str += getLastErrorCodeAndMessage();
+        error_str += getLastErrorCodeAndMessage();
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
-    v8::Local<v8::Object> result_printer_job = V8_VALUE_NEW_DEFAULT(Object);
+    Napi::Object result_printer_job = Napi::Object::New(env);
     parseJobObject(job.get(), result_printer_job);
-    MY_NODE_MODULE_RETURN_VALUE(result_printer_job);
+    return result_printer_job;
 }
 
 MY_NODE_MODULE_CALLBACK(setJob)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 3);
-    REQUIRE_ARGUMENT_STRINGW(iArgs, 0, printername);
-    REQUIRE_ARGUMENT_INTEGER(iArgs, 1, jobId);
-    REQUIRE_ARGUMENT_STRING(iArgs, 2, jobCommandV8);
-    if(jobId < 0)
+    MY_NODE_MODULE_ENV(info);
+    REQUIRE_ARGUMENTS(info, 3);
+    REQUIRE_ARGUMENT_STRINGW(info, 0, printername);
+    REQUIRE_ARGUMENT_INTEGER(info, 1, jobId);
+    REQUIRE_ARGUMENT_STRING(info, 2, jobCommand);
+    if (jobId < 0)
     {
         RETURN_EXCEPTION_STR("Wrong job number");
     }
-    std::string jobCommandStr(*jobCommandV8);
-    StatusMapType::const_iterator itJobCommand = getJobCommandMap().find(jobCommandStr);
-    if(itJobCommand == getJobCommandMap().end())
+    StatusMapType::const_iterator itJobCommand = getJobCommandMap().find(jobCommand);
+    if (itJobCommand == getJobCommandMap().end())
     {
         RETURN_EXCEPTION_STR("wrong job command. use getSupportedJobCommands to see the possible commands");
     }
     DWORD jobCommand = itJobCommand->second;
     // Open a handle to the printer.
     PrinterHandle printerHandle((LPWSTR)(*printername));
-    if(!printerHandle)
+    if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
         error_str += getLastErrorCodeAndMessage();
@@ -611,25 +619,25 @@ MY_NODE_MODULE_CALLBACK(setJob)
     // TODO: add the possibility to set job properties
     // http://msdn.microsoft.com/en-us/library/windows/desktop/dd162978(v=vs.85).aspx
     BOOL ok = SetJobW(*printerHandle, (DWORD)jobId, 0, NULL, jobCommand);
-    MY_NODE_MODULE_RETURN_VALUE(V8_VALUE_NEW(Boolean, ok == TRUE));
+    return Napi::Boolean::New(env, ok == TRUE);
 }
 
 MY_NODE_MODULE_CALLBACK(getSupportedJobCommands)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    v8::Local<v8::Array> result = V8_VALUE_NEW_DEFAULT(Array);
+    MY_NODE_MODULE_ENV(info);
+    Napi::Array result = Napi::Array::New(env);
     int i = 0;
-    for(StatusMapType::const_iterator itJob = getJobCommandMap().begin(); itJob != getJobCommandMap().end(); ++itJob)
+    for (const auto &itJob : getJobCommandMap())
     {
-        Nan::Set(result, i++, V8_STRING_NEW_UTF8(itJob->first.c_str()));
+        result.Set(i++, Napi::String::New(env, itJob.first));
     }
-    MY_NODE_MODULE_RETURN_VALUE(result);
+    return result;
 }
 
 MY_NODE_MODULE_CALLBACK(getSupportedPrintFormats)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    v8::Local<v8::Array> result = V8_VALUE_NEW_DEFAULT(Array);
+    MY_NODE_MODULE_ENV(info);
+    Napi::Array result = Napi::Array::New(env);
     int format_i = 0;
 
     LPTSTR name = NULL;
@@ -642,7 +650,8 @@ MY_NODE_MODULE_CALLBACK(getSupportedPrintFormats)
     // Retrieve processors
     BOOL isOK = EnumPrintProcessorsW(nullVal, nullVal, 1, (LPBYTE)(processors.get()), numBytes, &numBytes, &processorsNum);
 
-    if(!isOK) {
+    if (!isOK)
+    {
         std::string error_str("error on EnumPrintProcessorsW: ");
         error_str += getLastErrorCodeAndMessage();
         RETURN_EXCEPTION_STR(error_str.c_str());
@@ -650,57 +659,60 @@ MY_NODE_MODULE_CALLBACK(getSupportedPrintFormats)
 
     _PRINTPROCESSOR_INFO_1W *pProcessor = processors.get();
 
-    for(DWORD processor_i = 0; processor_i < processorsNum; ++processor_i, ++pProcessor) {
+    for (DWORD processor_i = 0; processor_i < processorsNum; ++processor_i, ++pProcessor)
+    {
         numBytes = 0;
         DWORD dataTypesNum = 0;
         EnumPrintProcessorDatatypesW(nullVal, pProcessor->pName, 1, (LPBYTE)(NULL), numBytes, &numBytes, &dataTypesNum);
         MemValue<_DATATYPES_INFO_1W> dataTypes(numBytes);
         isOK = EnumPrintProcessorDatatypesW(nullVal, pProcessor->pName, 1, (LPBYTE)(dataTypes.get()), numBytes, &numBytes, &dataTypesNum);
 
-        if(!isOK) {
+        if (!isOK)
+        {
             std::string error_str("error on EnumPrintProcessorDatatypesW: ");
             error_str += getLastErrorCodeAndMessage();
             RETURN_EXCEPTION_STR(error_str.c_str());
         }
 
         _DATATYPES_INFO_1W *pDataType = dataTypes.get();
-        for(DWORD j = 0; j < dataTypesNum; ++j, ++pDataType) {
-            Nan::Set(result, format_i++, V8_STRING_NEW_2BYTES((uint16_t*)(pDataType->pName)));
+        for (DWORD j = 0; j < dataTypesNum; ++j, ++pDataType)
+        {
+            result.Set(format_i++, Napi::String::New(env, (uint16_t *)(pDataType->pName)));
         }
     }
 
-    MY_NODE_MODULE_RETURN_VALUE(result);
+    return result;
 }
 
 MY_NODE_MODULE_CALLBACK(PrintDirect)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    //TODO: to move in an unique place win and posix input parameters processing
-    REQUIRE_ARGUMENTS(iArgs, 5);
+    MY_NODE_MODULE_ENV(info);
+    // TODO: to move in an unique place win and posix input parameters processing
+    REQUIRE_ARGUMENTS(info, 5);
 
     // can be string or buffer
-    if(iArgs.Length()<=0)
+    if (info.Length() <= 0)
     {
         RETURN_EXCEPTION_STR("Argument 0 missing");
     }
 
     std::string data;
-    v8::Local<v8::Value> arg0(iArgs[0]);
-    if (!getStringOrBufferFromV8Value(arg0, data))
+    Napi::Value arg0(info[0]);
+    if (!getStringOrBufferFromNapiValue(arg0, data))
     {
         RETURN_EXCEPTION_STR("Argument 0 must be a string or Buffer");
     }
 
-    REQUIRE_ARGUMENT_STRINGW(iArgs, 1, printername);
-    REQUIRE_ARGUMENT_STRINGW(iArgs, 2, docname);
-    REQUIRE_ARGUMENT_STRINGW(iArgs, 3, type);
+    REQUIRE_ARGUMENT_STRINGW(info, 1, printername);
+    REQUIRE_ARGUMENT_STRINGW(info, 2, docname);
+    REQUIRE_ARGUMENT_STRINGW(info, 3, type);
 
-    BOOL     bStatus = true;
+    BOOL bStatus = true;
     // Open a handle to the printer.
     PrinterHandle printerHandle((LPWSTR)(*printername));
     DOC_INFO_1W DocInfo;
-    DWORD      dwJob = 0L;
-    DWORD      dwBytesWritten = 0L;
+    DWORD dwJob = 0L;
+    DWORD dwBytesWritten = 0L;
 
     if (!printerHandle)
     {
@@ -711,40 +723,47 @@ MY_NODE_MODULE_CALLBACK(PrintDirect)
 
     // Fill in the structure with info about this "document."
     DocInfo.pDocName = (LPWSTR)(*docname);
-    DocInfo.pOutputFile =  NULL;
+    DocInfo.pOutputFile = NULL;
     DocInfo.pDatatype = (LPWSTR)(*type);
 
     // Inform the spooler the document is beginning.
-    dwJob = StartDocPrinterW(*printerHandle, 1, (LPBYTE)&DocInfo );
-    if (dwJob > 0) {
+    dwJob = StartDocPrinterW(*printerHandle, 1, (LPBYTE)&DocInfo);
+    if (dwJob > 0)
+    {
         // Start a page.
         bStatus = StartPagePrinter(*printerHandle);
-        if (bStatus) {
+        if (bStatus)
+        {
             // Send the data to the printer.
-            //TODO: check with sizeof(LPTSTR) is the same as sizeof(char)
-            bStatus = WritePrinter( *printerHandle, (LPVOID)(data.c_str()), (DWORD)data.size(), &dwBytesWritten);
+            // TODO: check with sizeof(LPTSTR) is the same as sizeof(char)
+            bStatus = WritePrinter(*printerHandle, (LPVOID)(data.c_str()), (DWORD)data.size(), &dwBytesWritten);
             EndPagePrinter(*printerHandle);
-        }else{
+        }
+        else
+        {
             std::string error_str("StartPagePrinter error: ");
-    	    error_str += getLastErrorCodeAndMessage();
+            error_str += getLastErrorCodeAndMessage();
             RETURN_EXCEPTION_STR(error_str.c_str());
         }
         // Inform the spooler that the document is ending.
         EndDocPrinter(*printerHandle);
-    }else{
-    	std::string error_str("StartDocPrinterW error: ");
-    	error_str += getLastErrorCodeAndMessage();
+    }
+    else
+    {
+        std::string error_str("StartDocPrinterW error: ");
+        error_str += getLastErrorCodeAndMessage();
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
     // Check to see if correct number of bytes were written.
-    if (dwBytesWritten != data.size()) {
+    if (dwBytesWritten != data.size())
+    {
         RETURN_EXCEPTION_STR("not sent all bytes");
     }
-    MY_NODE_MODULE_RETURN_VALUE(V8_VALUE_NEW(Number, dwJob));
+    return Napi::Number::New(env, dwJob);
 }
 
 MY_NODE_MODULE_CALLBACK(PrintFile)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
+    MY_NODE_MODULE_ENV(info);
     RETURN_EXCEPTION_STR("Not yet implemented on Windows");
 }

@@ -4,7 +4,7 @@
 #include <map>
 #include <utility>
 #include <sstream>
-#include <node_version.h>
+// #include <node_version.h>
 
 #include <cups/cups.h>
 #include <cups/ppd.h>
@@ -16,10 +16,10 @@ namespace
     typedef std::map<std::string, int> StatusMapType;
     typedef std::map<std::string, std::string> FormatMapType;
 
-    const StatusMapType& getJobStatusMap()
+    const StatusMapType &getJobStatusMap()
     {
         static StatusMapType result;
-        if(!result.empty())
+        if (!result.empty())
         {
             return result;
         }
@@ -39,10 +39,10 @@ namespace
         return result;
     }
 
-    const FormatMapType& getPrinterFormatMap()
+    const FormatMapType &getPrinterFormatMap()
     {
         static FormatMapType result;
-        if(!result.empty())
+        if (!result.empty())
         {
             return result;
         }
@@ -69,60 +69,62 @@ namespace
     /** Parse job info object.
      * @return error string. if empty, then no error
      */
-    std::string parseJobObject(const cups_job_t *job, v8::Local<v8::Object> result_printer_job)
+    std::string parseJobObject(const cups_job_t *job, Napi::Object result_printer_job)
     {
-        MY_NODE_MODULE_ISOLATE_DECL
-        //Common fields
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("id"), V8_VALUE_NEW(Number, job->id));
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("name"), V8_STRING_NEW_UTF8(job->title));
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("printerName"), V8_STRING_NEW_UTF8(job->dest));
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("user"), V8_STRING_NEW_UTF8(job->user));
+        Napi::Env env = result_printer_job.Env();
+
+        // Common fields
+        result_printer_job.Set("id", Napi::Number::New(env, job->id));
+        result_printer_job.Set("name", Napi::String::New(env, job->title));
+        result_printer_job.Set("printerName", Napi::String::New(env, job->dest));
+        result_printer_job.Set("user", Napi::String::New(env, job->user));
+
         std::string job_format(job->format);
 
         // Try to parse the data format, otherwise will write the unformatted one
-        for(FormatMapType::const_iterator itFormat = getPrinterFormatMap().begin(); itFormat != getPrinterFormatMap().end(); ++itFormat)
+        for (const auto &itFormat : getPrinterFormatMap())
         {
-            if(itFormat->second == job_format)
+            if (itFormat.second == job_format)
             {
-                job_format = itFormat->first;
+                job_format = itFormat.first;
                 break;
             }
         }
 
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("format"), V8_STRING_NEW_UTF8(job_format.c_str()));
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("priority"), V8_VALUE_NEW(Number, job->priority));
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("size"), V8_VALUE_NEW(Number, job->size));
-        v8::Local<v8::Array> result_printer_job_status = V8_VALUE_NEW_DEFAULT(Array);
-        int i_status = 0;
-        for(StatusMapType::const_iterator itStatus = getJobStatusMap().begin(); itStatus != getJobStatusMap().end(); ++itStatus)
+        result_printer_job.Set("format", Napi::String::New(env, job_format));
+        result_printer_job.Set("priority", Napi::Number::New(env, job->priority));
+        result_printer_job.Set("size", Napi::Number::New(env, job->size));
+
+        Napi::Array result_printer_job_status = Napi::Array::New(env);
+        uint32_t i_status = 0;
+
+        for (const auto &itStatus : getJobStatusMap())
         {
-            if(job->state == itStatus->second)
+            if (job->state == itStatus.second)
             {
-                Nan::Set(result_printer_job_status, i_status++, V8_STRING_NEW_UTF8(itStatus->first.c_str()));
+                result_printer_job_status.Set(i_status++, Napi::String::New(env, itStatus.first));
                 // only one status could be on posix
                 break;
             }
         }
-        if(i_status == 0)
+        if (i_status == 0)
         {
             // A new status? report as unsupported
             std::ostringstream s;
             s << "unsupported job status: " << job->state;
-            Nan::Set(result_printer_job_status, i_status++, V8_STRING_NEW_UTF8(s.str().c_str()));
+            result_printer_job_status.Set(i_status++, Napi::String::New(env, s.str()));
         }
+        result_printer_job.Set("status", result_printer_job_status);
 
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("status"), result_printer_job_status);
+        // Specific fields
+        //  Ecmascript store time in milliseconds, but time_t in seconds
+        double creationTime = static_cast<double>(job->creation_time) * 1000;
+        double completedTime = static_cast<double>(job->completed_time) * 1000;
+        double processingTime = static_cast<double>(job->processing_time) * 1000;
 
-        //Specific fields
-        // Ecmascript store time in milliseconds, but time_t in seconds
-
-        double creationTime = ((double)job->creation_time) * 1000;
-        double completedTime = ((double)job->completed_time) * 1000;
-        double processingTime = ((double)job->processing_time) * 1000;
-
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("completedTime"), Nan::New<v8::Date>(completedTime).ToLocalChecked());
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("creationTime"), Nan::New<v8::Date>(creationTime).ToLocalChecked());
-        Nan::Set(result_printer_job, V8_STRING_NEW_UTF8("processingTime"), Nan::New<v8::Date>(processingTime).ToLocalChecked());
+        result_printer_job.Set("completedTime", Napi::Date::New(env, completedTime));
+        result_printer_job.Set("creationTime", Napi::Date::New(env, creationTime));
+        result_printer_job.Set("processingTime", Napi::Date::New(env, processingTime));
 
         // No error. return an empty string
         return "";
@@ -130,28 +132,26 @@ namespace
 
     /** Parses printer driver PPD options
      */
-    void populatePpdOptions(v8::Local<v8::Object> ppd_options, ppd_file_t  *ppd, ppd_group_t *group)
+    void populatePpdOptions(Napi::Object ppd_options, ppd_file_t *ppd, ppd_group_t *group)
     {
-        int i, j;
-        ppd_option_t *option;
-        ppd_choice_t *choice;
-        ppd_group_t *subgroup;
+        Napi::Env env = ppd_options.Env();
 
-        for (i = group->num_options, option = group->options; i > 0; --i, ++option)
+        for (int i = group->num_options; i > 0; --i)
         {
-            MY_NODE_MODULE_ISOLATE_DECL
-            v8::Local<v8::Object> ppd_suboptions = V8_VALUE_NEW_DEFAULT(Object);
-            for (j = option->num_choices, choice = option->choices;
-                 j > 0;
-                 --j, ++choice)
+            ppd_option_t *option = &(group->options[group->num_options - i]);
+            Napi::Object ppd_suboptions = Napi::Object::New(env);
+            for (int j = option->num_choices; j > 0; --j)
             {
-                Nan::Set(ppd_suboptions, V8_STRING_NEW_UTF8(choice->choice), V8_VALUE_NEW(Boolean, static_cast<bool>(choice->marked)));
+                ppd_choice_t *choice = &(option->choices[option->num_choices - j]);
+                ppd_suboptions.Set(choice->choice, Napi::Boolean::New(env, static_cast<bool>(choice->marked)));
             }
 
-            Nan::Set(ppd_options, V8_STRING_NEW_UTF8(option->keyword), ppd_suboptions);
+            ppd_options.Set(option->keyword, ppd_suboptions);
         }
 
-        for (i = group->num_subgroups, subgroup = group->subgroups; i > 0; --i, ++subgroup) {
+        for (int i = group->num_subgroups; i > 0; --i)
+        {
+            ppd_group_t *subgroup = &(group->subgroups[group->num_subgroups - i]);
             populatePpdOptions(ppd_options, ppd, subgroup);
         }
     }
@@ -159,27 +159,27 @@ namespace
     /** Parse printer driver options
      * @return error string.
      */
-    std::string parseDriverOptions(const cups_dest_t * printer, v8::Local<v8::Object> ppd_options)
+    std::string parseDriverOptions(const cups_dest_t *printer, Napi::Object ppd_options)
     {
-        const char *filename;
-        ppd_file_t *ppd;
-        ppd_group_t *group;
-        int i;
+        const char *filename = nullptr;
+        ppd_file_t *ppd = nullptr;
+        ppd_group_t *group = nullptr;
 
         std::ostringstream error_str; // error string
 
-        if ((filename = cupsGetPPD(printer->name)) != NULL)
+        if ((filename = cupsGetPPD(printer->name)) != nullptr)
         {
-            if ((ppd = ppdOpenFile(filename)) != NULL)
+            if ((ppd = ppdOpenFile(filename)) != nullptr)
             {
-                 ppdMarkDefaults(ppd);
-                 cupsMarkOptions(ppd, printer->num_options, printer->options);
+                ppdMarkDefaults(ppd);
+                cupsMarkOptions(ppd, printer->num_options, printer->options);
 
-                 for (i = ppd->num_groups, group = ppd->groups; i > 0; --i, ++group)
-                 {
+                for (int i = ppd->num_groups; i > 0; --i)
+                {
+                    group = &(ppd->groups[ppd->num_groups - i]);
                     populatePpdOptions(ppd_options, ppd, group);
-                 }
-                 ppdClose(ppd);
+                }
+                ppdClose(ppd);
             }
             else
             {
@@ -195,196 +195,212 @@ namespace
         return error_str.str();
     }
 
-
     /** Parse printer info object
      * @return error string.
      */
-    std::string parsePrinterInfo(const cups_dest_t * printer, v8::Local<v8::Object> result_printer)
+    std::string parsePrinterInfo(const cups_dest_t *printer, Napi::Object result_printer)
     {
-        MY_NODE_MODULE_ISOLATE_DECL
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("name"), V8_STRING_NEW_UTF8(printer->name));
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("isDefault"), V8_VALUE_NEW(Boolean, static_cast<bool>(printer->is_default)));
+        Napi::Env env = result_printer.Env();
 
-        if(printer->instance)
+        result_printer.Set("name", Napi::String::New(env, printer->name));
+        result_printer.Set("isDefault", Napi::Boolean::New(env, static_cast<bool>(printer->is_default)));
+
+        if (printer->instance)
         {
-            Nan::Set(result_printer, V8_STRING_NEW_UTF8("instance"), V8_STRING_NEW_UTF8(printer->instance));
+            result_printer.Set("instance", Napi::String::New(env, printer->instance));
         }
 
-        v8::Local<v8::Object> result_printer_options = V8_VALUE_NEW_DEFAULT(Object);
+        Napi::Object result_printer_options = Napi::Object::New(env);
         cups_option_t *dest_option = printer->options;
-        for(int j = 0; j < printer->num_options; ++j, ++dest_option)
+        for (int j = 0; j < printer->num_options; ++j, ++dest_option)
         {
-            Nan::Set(result_printer_options, V8_STRING_NEW_UTF8(dest_option->name), V8_STRING_NEW_UTF8(dest_option->value));
+            result_printer_options.Set(Napi::String::New(env, dest_option->name), Napi::String::New(env, dest_option->value));
         }
-        Nan::Set(result_printer, V8_STRING_NEW_UTF8("options"), result_printer_options);
+        result_printer.Set("options", result_printer_options);
+
         // Get printer jobs
-        cups_job_t * jobs;
+        cups_job_t *jobs;
         int totalJobs = cupsGetJobs(&jobs, printer->name, 0 /*0 means all users*/, CUPS_WHICHJOBS_ACTIVE);
         std::string error_str;
-        if(totalJobs > 0)
+        if (totalJobs > 0)
         {
-            v8::Local<v8::Array> result_priner_jobs = V8_VALUE_NEW(Array, totalJobs);
-            int jobi =0;
-            cups_job_t * job = jobs;
-            for(; jobi < totalJobs; ++jobi, ++job)
+            Napi::Array result_printer_jobs = Napi::Array::New(env, totalJobs);
+            int jobi = 0;
+            cups_job_t *job = jobs;
+            for (; jobi < totalJobs; ++jobi, ++job)
             {
-                v8::Local<v8::Object> result_printer_job = V8_VALUE_NEW_DEFAULT(Object);
+                Napi::Object result_printer_job = Napi::Object::New(env);
                 error_str = parseJobObject(job, result_printer_job);
-                if(!error_str.empty())
+                if (!error_str.empty())
                 {
                     // got an error? break then.
                     break;
                 }
-                Nan::Set(result_priner_jobs, jobi, result_printer_job);
+                result_printer_jobs.Set(jobi, result_printer_job);
             }
-            Nan::Set(result_printer, V8_STRING_NEW_UTF8("jobs"), result_priner_jobs);
+            result_printer.Set("jobs", result_printer_jobs);
         }
         cupsFreeJobs(totalJobs, jobs);
         return error_str;
     }
 
     /// cups option class to automatically free memory.
-    class CupsOptions: public MemValueBase<cups_option_t> {
+    class CupsOptions : public MemValueBase<cups_option_t>
+    {
     protected:
         int num_options;
-        virtual void free() {
-            if(_value != NULL)
+        virtual void free()
+        {
+            if (_value != NULL)
             {
                 cupsFreeOptions(num_options, get());
                 _value = NULL;
                 num_options = 0;
             }
         }
+
     public:
-        CupsOptions(): num_options(0) {}
-        ~CupsOptions () { free(); }
+        CupsOptions() : num_options(0) {}
+        ~CupsOptions() { free(); }
 
         /// Add options from v8 object
-        CupsOptions(v8::Local<v8::Object> iV8Options): num_options(0) {
-            v8::Local<v8::Array> props = Nan::GetPropertyNames(iV8Options).ToLocalChecked();
+        CupsOptions(const Napi::Object &options) : num_options(0)
+        {
+            Napi::Array props = options.GetPropertyNames();
 
-            for(unsigned int i = 0; i < props->Length(); ++i) {
-                v8::Local<v8::Value> key(Nan::Get(props, i).ToLocalChecked());
-                Nan::Utf8String keyStr(V8_LOCAL_STRING_FROM_VALUE(key));
-                Nan::Utf8String valStr(V8_LOCAL_STRING_FROM_VALUE(Nan::Get(iV8Options, key).ToLocalChecked()));
+            for (uint32_t i = 0; i < props.Length(); ++i)
+            {
+                Napi::Value key = props.Get(i);
+                std::string keyStr = key.ToString().Utf8Value();
+                Napi::Value val = options.Get(key);
+                std::string valStr = val.ToString().Utf8Value();
 
-                num_options = cupsAddOption(*keyStr, *valStr, num_options, &_value);
+                num_options = cupsAddOption(keyStr.c_str(), valStr.c_str(), num_options, &_value);
             }
         }
 
-        const int& getNumOptions() { return num_options; }
+        const int &getNumOptions() { return num_options; }
     };
 }
 
 MY_NODE_MODULE_CALLBACK(getPrinters)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
+    MY_NODE_MODULE_ENV(info);
 
-    cups_dest_t *printers = NULL;
+    cups_dest_t *printers = nullptr;
     int printers_size = cupsGetDests(&printers);
-    v8::Local<v8::Array> result = V8_VALUE_NEW(Array, printers_size);
+    Napi::Array result = Napi::Array::New(env, printers_size);
     cups_dest_t *printer = printers;
     std::string error_str;
-    for(int i = 0; i < printers_size; ++i, ++printer)
+    for (int i = 0; i < printers_size; ++i, ++printer)
     {
-        v8::Local<v8::Object> result_printer = V8_VALUE_NEW_DEFAULT(Object);
+        Napi::Object result_printer = Napi::Object::New(env);
         error_str = parsePrinterInfo(printer, result_printer);
-        if(!error_str.empty())
+        if (!error_str.empty())
         {
             // got an error? break then
             break;
         }
-        Nan::Set(result, i, result_printer);
+        result.Set(i, result_printer);
     }
     cupsFreeDests(printers_size, printers);
-    if(!error_str.empty())
+    if (!error_str.empty())
     {
         // got an error? return the error then
-        RETURN_EXCEPTION_STR(error_str.c_str());
+        Napi::TypeError::New(env, error_str).ThrowAsJavaScriptException();
+        return env.Null();
     }
-    MY_NODE_MODULE_RETURN_VALUE(result);
+    return result;
 }
 
 MY_NODE_MODULE_CALLBACK(getDefaultPrinterName)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    //This does not return default user printer name according to https://www.cups.org/documentation.php/doc-2.0/api-cups.html#cupsGetDefault2
-    //so leave as undefined and JS implementation will loop in all printers
+    MY_NODE_MODULE_ENV(info);
+    // This does not return default user printer name according to https://www.cups.org/documentation.php/doc-2.0/api-cups.html#cupsGetDefault2
+    // so leave as undefined and JS implementation will loop in all printers
     /*
     const char * printerName = cupsGetDefault();
 
     // return default printer name only if defined
     if(printerName != NULL) {
-        MY_NODE_MODULE_RETURN_VALUE(V8_STRING_NEW_UTF8(printerName));
+        return Napi::String::New(env, printerName);
     }
     */
-    MY_NODE_MODULE_RETURN_UNDEFINED();
+    return env.Undefined();
 }
 
 MY_NODE_MODULE_CALLBACK(getPrinter)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 1);
-    REQUIRE_ARGUMENT_STRING(iArgs, 0, printername);
+    MY_NODE_MODULE_ENV(info);
 
-    cups_dest_t *printers = NULL, *printer = NULL;
+    REQUIRE_ARGUMENTS(info, 1);
+    REQUIRE_ARGUMENT_STRING(info, 0, printername);
+
+    cups_dest_t *printers = nullptr;
+    cups_dest_t *printer = nullptr;
     int printers_size = cupsGetDests(&printers);
-    printer = cupsGetDest(*printername, NULL, printers_size, printers);
-    v8::Local<v8::Object> result_printer = V8_VALUE_NEW_DEFAULT(Object);
-    if(printer != NULL)
+    printer = cupsGetDest(printername.c_str(), nullptr, printers_size, printers);
+    Napi::Object result_printer = Napi::Object::New(env);
+    if (printer != nullptr)
     {
         parsePrinterInfo(printer, result_printer);
     }
     cupsFreeDests(printers_size, printers);
-    if(printer == NULL)
+    if (printer == nullptr)
     {
         // printer not found
-        RETURN_EXCEPTION_STR("Printer not found");
+        Napi::TypeError::New(env, "Printer not found").ThrowAsJavaScriptException();
+        return env.Null();
     }
-    MY_NODE_MODULE_RETURN_VALUE(result_printer);
+    return result_printer;
 }
 
 MY_NODE_MODULE_CALLBACK(getPrinterDriverOptions)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 1);
-    REQUIRE_ARGUMENT_STRING(iArgs, 0, printername);
+    MY_NODE_MODULE_ENV(info);
 
-    cups_dest_t *printers = NULL, *printer = NULL;
+    REQUIRE_ARGUMENTS(info, 1);
+    REQUIRE_ARGUMENT_STRING(info, 0, printername);
+
+    cups_dest_t *printers = nullptr;
+    cups_dest_t *printer = nullptr;
     int printers_size = cupsGetDests(&printers);
-    printer = cupsGetDest(*printername, NULL, printers_size, printers);
-    v8::Local<v8::Object> driver_options = V8_VALUE_NEW_DEFAULT(Object);
-    if(printer != NULL)
+    printer = cupsGetDest(printername.c_str(), nullptr, printers_size, printers);
+    Napi::Object driver_options = Napi::Object::New(env);
+    if (printer != nullptr)
     {
         parseDriverOptions(printer, driver_options);
     }
     cupsFreeDests(printers_size, printers);
-    if(printer == NULL)
+    if (printer == nullptr)
     {
         // printer not found
-        RETURN_EXCEPTION_STR("Printer not found");
+        Napi::TypeError::New(env, "Printer not found").ThrowAsJavaScriptException();
+        return env.Null();
     }
-    MY_NODE_MODULE_RETURN_VALUE(driver_options);
+    return driver_options;
 }
 
 MY_NODE_MODULE_CALLBACK(getJob)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 2);
-    REQUIRE_ARGUMENT_STRING(iArgs, 0, printername);
-    REQUIRE_ARGUMENT_INTEGER(iArgs, 1, jobId);
+    MY_NODE_MODULE_ENV(info);
 
-    v8::Local<v8::Object> result_printer_job = V8_VALUE_NEW_DEFAULT(Object);
+    REQUIRE_ARGUMENTS(info, 1);
+    REQUIRE_ARGUMENT_STRING(info, 0, printername);
+    REQUIRE_ARGUMENT_INTEGER(info, 1, jobId);
+
+    Napi::Object result_printer_job = Napi::Object::New(env);
     // Get printer jobs
-    cups_job_t *jobs = NULL, *jobFound = NULL;
-    int totalJobs = cupsGetJobs(&jobs, *printername, 0 /*0 means all users*/, CUPS_WHICHJOBS_ALL);
-    if(totalJobs > 0)
+    cups_job_t *jobs = nullptr;
+    cups_job_t *jobFound = nullptr;
+    int totalJobs = cupsGetJobs(&jobs, printername.c_str(), 0 /*0 means all users*/, CUPS_WHICHJOBS_ALL);
+    if (totalJobs > 0)
     {
-        int jobi =0;
-        cups_job_t * job = jobs;
-        for(; jobi < totalJobs; ++jobi, ++job)
+        int jobi = 0;
+        cups_job_t *job = jobs;
+        for (; jobi < totalJobs; ++jobi, ++job)
         {
-            if(job->id != jobId)
+            if (job->id != jobId)
             {
                 continue;
             }
@@ -395,136 +411,143 @@ MY_NODE_MODULE_CALLBACK(getJob)
         }
     }
     cupsFreeJobs(totalJobs, jobs);
-    if(jobFound == NULL)
+    if (jobFound == nullptr)
     {
         // printer not found
-        RETURN_EXCEPTION_STR("Printer job not found");
+        Napi::TypeError::New(env, "Printer job not found").ThrowAsJavaScriptException();
+        return env.Null();
     }
-    MY_NODE_MODULE_RETURN_VALUE(result_printer_job);
+    return result_printer_job;
 }
 
 MY_NODE_MODULE_CALLBACK(setJob)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 3);
-    REQUIRE_ARGUMENT_STRING(iArgs, 0, printername);
-    REQUIRE_ARGUMENT_INTEGER(iArgs, 1, jobId);
-    REQUIRE_ARGUMENT_STRING(iArgs, 2, jobCommandV8);
-    if(jobId < 0)
+    MY_NODE_MODULE_ENV(info);
+
+    REQUIRE_ARGUMENTS(info, 3);
+    REQUIRE_ARGUMENT_STRING(info, 0, printername);
+    REQUIRE_ARGUMENT_INTEGER(info, 1, jobId);
+    REQUIRE_ARGUMENT_STRING(info, 2, jobCommand);
+    if (jobId < 0)
     {
         RETURN_EXCEPTION_STR("Wrong job number");
     }
-    std::string jobCommandStr(*jobCommandV8);
     bool result_ok = false;
-    if(jobCommandStr == "CANCEL")
+    if (jobCommand == "CANCEL")
     {
-        result_ok = (cupsCancelJob(*printername, jobId) == 1);
+        result_ok = (cupsCancelJob(printername.c_str(), jobId) == 1);
     }
     else
     {
         RETURN_EXCEPTION_STR("wrong job command. use getSupportedJobCommands to see the possible commands");
     }
-    MY_NODE_MODULE_RETURN_VALUE(V8_VALUE_NEW(Boolean, result_ok));
+    return Napi::Boolean::New(env, result_ok);
 }
 
 MY_NODE_MODULE_CALLBACK(getSupportedJobCommands)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    v8::Local<v8::Array> result = V8_VALUE_NEW_DEFAULT(Array);
-    int i = 0;
-    Nan::Set(result, i++, V8_STRING_NEW_UTF8("CANCEL"));
-    MY_NODE_MODULE_RETURN_VALUE(result);
+    MY_NODE_MODULE_ENV(info);
+    Napi::Array result = Napi::Array::New(env);
+    uint32_t i = 0;
+    result.Set(i++, Napi::String::New(env, "CANCEL"));
+    return result;
 }
 
 MY_NODE_MODULE_CALLBACK(getSupportedPrintFormats)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    v8::Local<v8::Array> result = V8_VALUE_NEW_DEFAULT(Array);
-    int i = 0;
-    for(FormatMapType::const_iterator itFormat = getPrinterFormatMap().begin(); itFormat != getPrinterFormatMap().end(); ++itFormat)
+    MY_NODE_MODULE_ENV(info);
+    Napi::Array result = Napi::Array::New(env);
+    uint32_t i = 0;
+    for (const auto &itFormat : getPrinterFormatMap())
     {
-        Nan::Set(result, i++, V8_STRING_NEW_UTF8(itFormat->first.c_str()));
+        result.Set(i++, Napi::String::New(env, itFormat.first));
+        ;
     }
-    MY_NODE_MODULE_RETURN_VALUE(result);
+    return result;
 }
 
 MY_NODE_MODULE_CALLBACK(PrintDirect)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 5);
+    MY_NODE_MODULE_ENV(info);
+    REQUIRE_ARGUMENTS(info, 5);
 
     // can be string or buffer
-    if(iArgs.Length() <= 0)
+    if (info.Length() <= 0)
     {
         RETURN_EXCEPTION_STR("Argument 0 missing");
     }
 
     std::string data;
-    v8::Local<v8::Value> arg0(iArgs[0]);
-    if (!getStringOrBufferFromV8Value(arg0, data))
+    Napi::Value arg0(info[0]);
+    if (!getStringOrBufferFromNapiValue(arg0, data))
     {
         RETURN_EXCEPTION_STR("Argument 0 must be a string or Buffer");
     }
 
-    REQUIRE_ARGUMENT_STRING(iArgs, 1, printername);
-    REQUIRE_ARGUMENT_STRING(iArgs, 2, docname);
-    REQUIRE_ARGUMENT_STRING(iArgs, 3, type);
-    REQUIRE_ARGUMENT_OBJECT(iArgs, 4, print_options);
+    REQUIRE_ARGUMENT_STRING(info, 1, printername);
+    REQUIRE_ARGUMENT_STRING(info, 2, docname);
+    REQUIRE_ARGUMENT_STRING(info, 3, type);
+    REQUIRE_ARGUMENT_OBJECT(info, 4, print_options);
 
-    std::string type_str(*type);
-    FormatMapType::const_iterator itFormat = getPrinterFormatMap().find(type_str);
-    if(itFormat == getPrinterFormatMap().end())
+    FormatMapType::const_iterator itFormat = getPrinterFormatMap().find(type);
+    if (itFormat == getPrinterFormatMap().end())
     {
         RETURN_EXCEPTION_STR("unsupported format type");
     }
-    type_str = itFormat->second;
+    type = itFormat->second;
 
     CupsOptions options(print_options);
 
-    int job_id = cupsCreateJob(CUPS_HTTP_DEFAULT, *printername, *docname, options.getNumOptions(), options.get());
-    if(job_id == 0) {
+    int job_id = cupsCreateJob(CUPS_HTTP_DEFAULT, printername.c_str(), docname.c_str(), options.getNumOptions(), options.get());
+    if (job_id == 0)
+    {
         RETURN_EXCEPTION_STR(cupsLastErrorString());
     }
 
-    if(HTTP_CONTINUE != cupsStartDocument(CUPS_HTTP_DEFAULT, *printername, job_id, *docname, type_str.c_str(), 1 /*last document*/)) {
+    if (HTTP_CONTINUE != cupsStartDocument(CUPS_HTTP_DEFAULT, printername.c_str(), job_id, docname.c_str(), type.c_str(), 1 /*last document*/))
+    {
         RETURN_EXCEPTION_STR(cupsLastErrorString());
     }
 
     /* cupsWriteRequestData can be called as many times as needed */
-    //TODO: to split big buffer
-    if (HTTP_CONTINUE != cupsWriteRequestData(CUPS_HTTP_DEFAULT, data.c_str(), data.size())) {
-        cupsFinishDocument(CUPS_HTTP_DEFAULT, *printername);
+    // TODO: to split big buffer
+    if (HTTP_CONTINUE != cupsWriteRequestData(CUPS_HTTP_DEFAULT, data.c_str(), data.size()))
+    {
+        cupsFinishDocument(CUPS_HTTP_DEFAULT, printername.c_str());
         RETURN_EXCEPTION_STR(cupsLastErrorString());
     }
 
-    cupsFinishDocument(CUPS_HTTP_DEFAULT, *printername);
+    cupsFinishDocument(CUPS_HTTP_DEFAULT, printername.c_str());
 
-    MY_NODE_MODULE_RETURN_VALUE(V8_VALUE_NEW(Number, job_id));
+    return Napi::Number::New(env, job_id);
 }
 
 MY_NODE_MODULE_CALLBACK(PrintFile)
 {
-    MY_NODE_MODULE_HANDLESCOPE;
-    REQUIRE_ARGUMENTS(iArgs, 3);
+    MY_NODE_MODULE_ENV(info);
+    REQUIRE_ARGUMENTS(info, 3);
 
     // can be string or buffer
-    if(iArgs.Length() <= 0)
+    if (info.Length() <= 0)
     {
         RETURN_EXCEPTION_STR("Argument 0 missing");
     }
 
-    REQUIRE_ARGUMENT_STRING(iArgs, 0, filename);
-    REQUIRE_ARGUMENT_STRING(iArgs, 1, docname);
-    REQUIRE_ARGUMENT_STRING(iArgs, 2, printer);
-    REQUIRE_ARGUMENT_OBJECT(iArgs, 3, print_options);
+    REQUIRE_ARGUMENT_STRING(info, 0, filename);
+    REQUIRE_ARGUMENT_STRING(info, 1, docname);
+    REQUIRE_ARGUMENT_STRING(info, 2, printer);
+    REQUIRE_ARGUMENT_OBJECT(info, 3, print_options);
 
     CupsOptions options(print_options);
 
-    int job_id = cupsPrintFile(*printer, *filename, *docname, options.getNumOptions(), options.get());
+    int job_id = cupsPrintFile(printer.c_str(), filename.c_str(), docname.c_str(), options.getNumOptions(), options.get());
 
-    if(job_id == 0){
-        MY_NODE_MODULE_RETURN_VALUE(V8_STRING_NEW_UTF8(cupsLastErrorString()));
-    } else {
-        MY_NODE_MODULE_RETURN_VALUE(V8_VALUE_NEW(Number, job_id));
+    if (job_id == 0)
+    {
+        return Napi::String::New(env, cupsLastErrorString());
+    }
+    else
+    {
+        return Napi::Number::New(env, job_id);
     }
 }
