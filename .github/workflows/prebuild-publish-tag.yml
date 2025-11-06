@@ -1,0 +1,82 @@
+name: Prebuild and Publish Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: npm ci
+      - run: npm run prebuild
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuild-linux
+          path: ./prebuilds
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: npm ci
+      - run: npm run prebuild
+      - name: Upload macOS binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuild-macos
+          path: ./prebuilds
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - run: npm ci
+      - run: npm run prebuild
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuild-windows
+          path: ./prebuilds
+
+  publish:
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: prebuild-linux
+          path: ./prebuilds
+      - name: Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: prebuild-macos
+          path: ./prebuilds
+      - name: Download Windows binary
+        uses: actions/download-artifact@v4
+        with:
+          name: prebuild-windows
+          path: ./prebuilds
+      - run: npm ci
+      - run: npm test  # Optional, if you want to run tests before publishing
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

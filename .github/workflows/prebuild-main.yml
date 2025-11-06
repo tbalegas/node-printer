@@ -1,4 +1,4 @@
-name: Prebuild Binaries and Publish
+name: Prebuild Binaries
 
 on:
   push:
@@ -6,49 +6,46 @@ on:
       - main
 
 jobs:
-  prebuild-linux:
+  build-linux:
     name: Prebuild Binaries for Linux
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Setup Dependencies
+      - name: Setup dependencies
         run: |
           sudo apt-get update -y -qq
           sudo apt-get install -y g++-multilib gcc-multilib libcups2-dev linux-libc-dev
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22.x
-      - uses: actions/checkout@v1
-      - run: npm i
+      - run: npm ci
       - name: Prebuild
         run: |
-          npm run prebuild -- -r node -t 22.18.0 --strip --arch x64 -u ${{ secrets.PREBUILD_TOKEN }}
-          npm run prebuild -- -r electron -t 38.0.0 --strip --arch x64 -u ${{ secrets.PREBUILD_TOKEN }}
-  prebuild-macos:
+          npm run prebuild
+  build-macos:
     name: Prebuild Binaries for macOS
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22.x
-      - uses: actions/checkout@v1
-      - run: npm i
+      - run: npm ci
       - name: Prebuild
         run: |
-          npm run prebuild -- -r node -t 22.18.0 --strip --arch x64 -u ${{ secrets.PREBUILD_TOKEN }}
-          npm run prebuild -- -r electron -t 38.0.0 --strip --arch x64 -u ${{ secrets.PREBUILD_TOKEN }}
-  prebuild-windows:
+          npm run prebuild
+  build-windows:
     name: Prebuild Binaries for Windows
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/setup-node@v1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22.x
-      - uses: actions/checkout@v1
-      - run: npm i
+      - run: npm ci
       - name: Prebuild
         run: |
-          npm run prebuild -- -r node -t 22.18.0 --strip --arch x64 -u ${{ secrets.PREBUILD_TOKEN }}
-          npm run prebuild -- -r electron -t 38.0.0 --strip --arch x64 -u ${{ secrets.PREBUILD_TOKEN }}
+          npm run prebuild
