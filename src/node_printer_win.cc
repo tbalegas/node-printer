@@ -219,7 +219,7 @@ namespace
 #define ADD_NAPI_STRING_PROPERTY(name, key)                                \
     if ((job->##key != NULL) && (*job->##key != L'\0'))                    \
     {                                                                      \
-        result_printer_job.Set(#name, Napi::String::New(env, job->##key)); \
+        result_printer_job.Set(#name, Napi::String::New(env, (char16_t *)job->##key)); \
     }
         // LPTSTR               pPrinterName;
         ADD_NAPI_STRING_PROPERTY(name, pPrinterName);
@@ -246,9 +246,9 @@ namespace
         // LPTSTR               pStatus;
         if ((job->pStatus != NULL) && (*job->pStatus != L'\0'))
         {
-            result_printer_job_status.Set(i_status++, Napi::String::New(env, job->pStatus));
+            result_printer_job_status.Set(i_status++, Napi::String::New(env, (char16_t *)job->pStatus));
         }
-        result_rpinter_job.Set("status", result_printer_job_status);
+        result_printer_job.Set("status", result_printer_job_status);
 
         // Specific fields
         // LPTSTR               pMachineName;
@@ -357,7 +357,7 @@ namespace
 #define ADD_V8_STRING_PROPERTY(name, key)                             \
     if ((printer->##key != NULL) && (*printer->##key != L'\0'))       \
     {                                                                 \
-        result_printer.Set(#name, Napi::String::New(printer->##key)); \
+        result_printer.Set(#name, Napi::String::New(env, (char16_t *)printer->##key)); \
     }
         // LPTSTR               pPrinterName;
         ADD_V8_STRING_PROPERTY(name, pPrinterName)
@@ -499,7 +499,7 @@ MY_NODE_MODULE_CALLBACK(getDefaultPrinterName)
         return Napi::String::New(env, "");
     }
 
-    MemValue<uint16_t> bPrinterName(cSize * sizeof(uint16_t));
+    MemValue<char16_t> bPrinterName(cSize * sizeof(char16_t));
     BOOL res = GetDefaultPrinterW((LPWSTR)(bPrinterName.get()), &cSize);
 
     if (!res)
@@ -507,7 +507,7 @@ MY_NODE_MODULE_CALLBACK(getDefaultPrinterName)
         return Napi::String::New(env, "");
     }
 
-    return Napi::String::New(env, (uint16_t *)bPrinterName.get());
+    return Napi::String::New(env, (char16_t *)bPrinterName.get());
 }
 
 MY_NODE_MODULE_CALLBACK(getPrinter)
@@ -517,7 +517,7 @@ MY_NODE_MODULE_CALLBACK(getPrinter)
     REQUIRE_ARGUMENT_STRINGW(info, 0, printername);
 
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername));
+    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
     if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
@@ -538,14 +538,14 @@ MY_NODE_MODULE_CALLBACK(getPrinter)
         error_str += getLastErrorCodeAndMessage();
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
-    v8::Local<v8::Object> result_printer = V8_VALUE_NEW_DEFAULT(Object);
+    Napi::Object result_printer = Napi::Object::New(env);
     std::string error_str = parsePrinterInfo(printer.get(), result_printer, printerHandle);
     if (!error_str.empty())
     {
         RETURN_EXCEPTION_STR(error_str.c_str());
     }
 
-    MY_NODE_MODULE_RETURN_VALUE(result_printer);
+    return result_printer;
 }
 
 MY_NODE_MODULE_CALLBACK(getPrinterDriverOptions)
@@ -565,7 +565,7 @@ MY_NODE_MODULE_CALLBACK(getJob)
         RETURN_EXCEPTION_STR("Wrong job number");
     }
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername));
+    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
     if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
@@ -597,19 +597,19 @@ MY_NODE_MODULE_CALLBACK(setJob)
     REQUIRE_ARGUMENTS(info, 3);
     REQUIRE_ARGUMENT_STRINGW(info, 0, printername);
     REQUIRE_ARGUMENT_INTEGER(info, 1, jobId);
-    REQUIRE_ARGUMENT_STRING(info, 2, jobCommand);
+    REQUIRE_ARGUMENT_STRING(info, 2, jobCommandStr);
     if (jobId < 0)
     {
         RETURN_EXCEPTION_STR("Wrong job number");
     }
-    StatusMapType::const_iterator itJobCommand = getJobCommandMap().find(jobCommand);
+    StatusMapType::const_iterator itJobCommand = getJobCommandMap().find(jobCommandStr);
     if (itJobCommand == getJobCommandMap().end())
     {
         RETURN_EXCEPTION_STR("wrong job command. use getSupportedJobCommands to see the possible commands");
     }
     DWORD jobCommand = itJobCommand->second;
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername));
+    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
     if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
@@ -677,7 +677,7 @@ MY_NODE_MODULE_CALLBACK(getSupportedPrintFormats)
         _DATATYPES_INFO_1W *pDataType = dataTypes.get();
         for (DWORD j = 0; j < dataTypesNum; ++j, ++pDataType)
         {
-            result.Set(format_i++, Napi::String::New(env, (uint16_t *)(pDataType->pName)));
+            result.Set(format_i++, Napi::String::New(env, (char16_t *)(pDataType->pName)));
         }
     }
 
@@ -709,7 +709,7 @@ MY_NODE_MODULE_CALLBACK(PrintDirect)
 
     BOOL bStatus = true;
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername));
+    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
     DOC_INFO_1W DocInfo;
     DWORD dwJob = 0L;
     DWORD dwBytesWritten = 0L;
@@ -722,9 +722,9 @@ MY_NODE_MODULE_CALLBACK(PrintDirect)
     }
 
     // Fill in the structure with info about this "document."
-    DocInfo.pDocName = (LPWSTR)(*docname);
+    DocInfo.pDocName = (LPWSTR)(*docname.c_str());
     DocInfo.pOutputFile = NULL;
-    DocInfo.pDatatype = (LPWSTR)(*type);
+    DocInfo.pDatatype = (LPWSTR)(*type.c_str());
 
     // Inform the spooler the document is beginning.
     dwJob = StartDocPrinterW(*printerHandle, 1, (LPBYTE)&DocInfo);
