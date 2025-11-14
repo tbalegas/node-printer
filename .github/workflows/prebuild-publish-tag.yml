@@ -16,7 +16,7 @@ jobs:
       - name: Setup dependencies
         run: |
           sudo apt-get update -y -qq
-          sudo apt-get install -y g++-multilib gcc-multilib libcups2-dev linux-libc-dev
+          sudo apt-get install -y libcups2-dev linux-libc-dev
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
