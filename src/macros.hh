@@ -52,7 +52,7 @@
 
 #define REQUIRE_ARGUMENT_STRINGW(args, i, var) \
     ARG_CHECK_STRING(args, i);                 \
-    std::string var = info[i].As<Napi::String>().Utf8Value();
+    std::u16string var = info[i].As<Napi::String>().Utf16Value();
 
 #define OPTIONAL_ARGUMENT_FUNCTION(i, var)                              \
     v8::Local<v8::Function> var;                                        \

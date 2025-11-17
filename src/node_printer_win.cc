@@ -517,7 +517,7 @@ MY_NODE_MODULE_CALLBACK(getPrinter)
     REQUIRE_ARGUMENT_STRINGW(info, 0, printername);
 
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
+    PrinterHandle printerHandle((LPWSTR)((char16_t *)printername.c_str()));
     if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
@@ -565,7 +565,7 @@ MY_NODE_MODULE_CALLBACK(getJob)
         RETURN_EXCEPTION_STR("Wrong job number");
     }
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
+    PrinterHandle printerHandle((LPWSTR)((char16_t *)printername.c_str()));
     if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
@@ -609,7 +609,7 @@ MY_NODE_MODULE_CALLBACK(setJob)
     }
     DWORD jobCommand = itJobCommand->second;
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
+    PrinterHandle printerHandle((LPWSTR)((char16_t *)printername.c_str()));
     if (!printerHandle)
     {
         std::string error_str("error on PrinterHandle: ");
@@ -709,7 +709,7 @@ MY_NODE_MODULE_CALLBACK(PrintDirect)
 
     BOOL bStatus = true;
     // Open a handle to the printer.
-    PrinterHandle printerHandle((LPWSTR)(*printername.c_str()));
+    PrinterHandle printerHandle((LPWSTR)((char16_t *)printername.c_str()));
     DOC_INFO_1W DocInfo;
     DWORD dwJob = 0L;
     DWORD dwBytesWritten = 0L;
@@ -722,9 +722,9 @@ MY_NODE_MODULE_CALLBACK(PrintDirect)
     }
 
     // Fill in the structure with info about this "document."
-    DocInfo.pDocName = (LPWSTR)(*docname.c_str());
+    DocInfo.pDocName = (LPWSTR)((char16_t *)docname.c_str());
     DocInfo.pOutputFile = NULL;
-    DocInfo.pDatatype = (LPWSTR)(*type.c_str());
+    DocInfo.pDatatype = (LPWSTR)((char16_t *)type.c_str());
 
     // Inform the spooler the document is beginning.
     dwJob = StartDocPrinterW(*printerHandle, 1, (LPBYTE)&DocInfo);
